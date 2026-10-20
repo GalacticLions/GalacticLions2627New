@@ -3,21 +3,21 @@ name: Team5898 Build
 on:
   push:
     branches: [ "5898" ]
-    paths:
+    paths: &paths
       - "Team5898/**"
+      - "FtcRobotController/**"
+      - "libs/**"
       - "*.gradle"
       - "gradle/**"
       - "gradle.properties"
-      - "FtcRobotController/**"
+      - ".github/workflows/team5898-ci.yml"
   pull_request:
     branches: [ "5898" ]
-    paths:
-      - "Team5898/**"
-      - "*.gradle"
-      - "gradle/**"
-      - "gradle.properties"
-      - "FtcRobotController/**"
+    paths: *paths
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 # A new push cancels the older run that's still going.
 concurrency:
@@ -36,10 +36,12 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      # setup-gradle only writes the cache on the default branch (master) by default,
+      # so 5898 would never get a warm cache. Let pushes to 5898 write it too.
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/5898' }}
 
       # Compile only. Skips dexing and APK packaging, which are the slow parts.
       - name: Compile Team5898
-        run: |
-          chmod +x gradlew
-          ./gradlew :Team5898:compileDebugSources
+        run: ./gradlew :Team5898:compileDebugSources
