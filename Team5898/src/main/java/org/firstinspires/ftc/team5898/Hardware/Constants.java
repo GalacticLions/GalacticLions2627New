@@ -19,7 +19,8 @@ public class Constants {
       public static String MOTOR_LAUNCHER_LEFT = "ll";
       @NonNull
       public static String MOTOR_INTAKE = "intake";
-    @NonNull public static String IMU = "imu";
+      @NonNull
+      public static String IMU = "imu";
       @NonNull
       public static String SERVO_GATE = "gate";
   }
@@ -91,6 +92,12 @@ public class Constants {
         public static double TURN_TOLERANCE = 1.0;
         @Sorter(sort = 21)
         public static double STEP_TIMEOUT_SEC = 5.0;
+        @Sorter(sort = 22)
+        public static double SHOOT_TIME_SEC = 10.0; // no ball sensor, so shoot for a fixed time
+        @Sorter(sort = 23)
+        public static double REFILL_CUTOFF_SEC = 0.0; // skip the garden refill if the first SHOOT ends later than this; 0 = off
+        @Sorter(sort = 24)
+        public static double LAUNCHER_TOLERANCE = 150.0; // ticks/sec, looser than TeleOp so a shot's dip doesn't close the gate
     }
 
   @Configurable
@@ -101,5 +108,7 @@ public class Constants {
     public static double BLUE_ALLIANCE_TX = 3.30;
       @Sorter(sort = 12)
     public static double RED_ALLIANCE_TX = 0.31;
+      @Sorter(sort = 25)
+      public static double MAX_STALENESS_MS = 100.0; // ignore frames older than this, so a frozen camera stops the robot
   }
 }

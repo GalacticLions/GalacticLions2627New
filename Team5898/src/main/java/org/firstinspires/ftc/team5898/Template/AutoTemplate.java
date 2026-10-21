@@ -9,7 +9,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.team5898.Hardware.Constants;
 import org.firstinspires.ftc.team5898.Hardware.Robot;
 
-// TODO docstring
+// A template for non-state-machine autonomous
 @Disabled
 public class AutoTemplate extends LinearOpMode {
     // Key moves (blue side; mirrored for red)

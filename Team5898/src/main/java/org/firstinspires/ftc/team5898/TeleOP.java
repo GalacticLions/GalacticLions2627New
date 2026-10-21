@@ -69,7 +69,7 @@ public class TeleOP extends OpMode {
                 robot.setLauncherVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_VELOCITY);
                 robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
                 // Only feed once both wheels are up to speed; closes again if a shot drags them down
-                if (robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY)) {
+                if (robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_TOLERANCE)) {
                     robot.openGate();
                 } else {
                     robot.closeGate();
@@ -79,7 +79,7 @@ public class TeleOP extends OpMode {
 
         telemetry.addData("State", state);
         telemetry.addData("Launcher L/R", "%.0f / %.0f", robot.getLauncherLeftVelocity(), robot.getLauncherRightVelocity());
-        telemetry.addData("At speed", robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY));
+        telemetry.addData("At speed", robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_TOLERANCE));
     }
 
     @Override

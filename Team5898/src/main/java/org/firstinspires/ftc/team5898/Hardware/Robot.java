@@ -83,8 +83,9 @@ public class Robot {
      */
     public void driveFieldCentric(double forward, double strafe, double turn) {
         double heading = getHeadingRad();
-        double rotatedForward = forward * Math.cos(heading) + strafe * Math.sin(heading);
-        double rotatedStrafe = strafe * Math.cos(heading) - forward * Math.sin(heading);
+        // Yaw is counterclockwise-positive, so rotate the stick by -heading into the robot's frame
+        double rotatedForward = forward * Math.cos(heading) - strafe * Math.sin(heading);
+        double rotatedStrafe = strafe * Math.cos(heading) + forward * Math.sin(heading);
         drive(rotatedForward, rotatedStrafe, turn);
     }
 
@@ -135,12 +136,16 @@ public class Robot {
     }
 
     public void applyLauncherPIDF() {
-        launcherLeft.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(
-                Constants.PIDFLauncherLeft.kP, Constants.PIDFLauncherLeft.kI,
-                Constants.PIDFLauncherLeft.kD, Constants.PIDFLauncherLeft.kF));
-        launcherRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(
-                Constants.PIDFLauncherRight.kP, Constants.PIDFLauncherRight.kI,
-                Constants.PIDFLauncherRight.kD, Constants.PIDFLauncherRight.kF));
+        applyPIDF(launcherLeft, Constants.PIDFLauncherLeft.kP, Constants.PIDFLauncherLeft.kI,
+                Constants.PIDFLauncherLeft.kD, Constants.PIDFLauncherLeft.kF);
+        applyPIDF(launcherRight, Constants.PIDFLauncherRight.kP, Constants.PIDFLauncherRight.kI,
+                Constants.PIDFLauncherRight.kD, Constants.PIDFLauncherRight.kF);
+    }
+
+    // All-zero gains mean "not tuned yet": keep the motor's factory defaults instead of disabling its velocity loop
+    private static void applyPIDF(DcMotorEx motor, double p, double i, double d, double f) {
+        if (p == 0 && i == 0 && d == 0 && f == 0) return;
+        motor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(p, i, d, f));
     }
 
     public void setIntakePower(double intakePower) {
@@ -160,8 +165,7 @@ public class Robot {
         return launcherRight.getVelocity();
     }
 
-    public boolean isLauncherAtVelocity(double targetVelocity) {
-        double tolerance = Constants.TeleOp.LAUNCHER_TOLERANCE;
+    public boolean isLauncherAtVelocity(double targetVelocity, double tolerance) {
         return Math.abs(launcherLeft.getVelocity() - targetVelocity) < tolerance
                 && Math.abs(launcherRight.getVelocity() - targetVelocity) < tolerance;
     }

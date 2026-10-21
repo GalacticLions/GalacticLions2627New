@@ -29,15 +29,12 @@ public class VisualServoing {
     public static double TARGET_TY = 0.0; // Target ty value (adjust based on desired distance)
     public static double TARGET_TX = 0.0; // Target tx value (default 0.0 = center)
     public static int TagID = -1;
-    public static double targetAreaThreshold = Limelight.TARGET_AREA_THRESHOLD;
     private final Limelight3A limelight;
     private final DcMotor frontLeft;
     private final DcMotor frontRight;
     private final DcMotor backLeft;
     private final DcMotor backRight;
     private final Telemetry telemetry;
-    private static double BLUE_TX = Limelight.BLUE_ALLIANCE_TX;
-    private static double RED_TX = Limelight.RED_ALLIANCE_TX;
 
     // Constructor
 
@@ -51,97 +48,51 @@ public class VisualServoing {
         this.telemetry = telemetry;
     }
 
+    // getLatestResult() keeps returning the last frame if the camera stops updating, so reject old ones
+    private LLResultTypes.FiducialResult findTarget() {
+        LLResult result = limelight.getLatestResult();
+        if (result == null || !result.isValid() || result.getStaleness() > Limelight.MAX_STALENESS_MS) return null;
+
+        List<LLResultTypes.FiducialResult> fiducialResults = result.getFiducialResults();
+        if (fiducialResults == null) return null;
+
+        for (LLResultTypes.FiducialResult fr : fiducialResults) {
+            int id = fr.getFiducialId();
+            if (id == 20 || id == 24) return fr;
+        }
+        return null;
+    }
+
+    // Far away (small area) we aim off-center at the goal; up close we aim at the tag itself
+    private static double targetTxFor(LLResultTypes.FiducialResult target) {
+        if (target.getTargetArea() > Limelight.TARGET_AREA_THRESHOLD) return 0.0;
+        return target.getFiducialId() == 20 ? Limelight.BLUE_ALLIANCE_TX : Limelight.RED_ALLIANCE_TX;
+    }
+
     /**
      * Returns true when the robot is aligned to the target (both tx and ty errors within thresholds).
      * Returns false if there is no valid target or alignment is not yet complete.
      */
     public boolean isAligned() {
-        LLResult result = limelight.getLatestResult();
-        if (result == null || !result.isValid()) return false;
+        LLResultTypes.FiducialResult target = findTarget();
+        if (target == null) return false;
 
-        List<LLResultTypes.FiducialResult> fiducialResults = result.getFiducialResults();
-        if (fiducialResults == null || fiducialResults.isEmpty()) return false;
-
-        boolean targetFound = false;
-        for (LLResultTypes.FiducialResult fr : fiducialResults) {
-            int id = fr.getFiducialId();
-            if (id == 20 || id == 24) { targetFound = true; break; }
-        }
-        if (!targetFound) return false;
-
-        double tx = result.getTx();
-        double ty = result.getTy();
-        double ta = result.getTa();
-
-        double effectiveTargetTX;
-        if (ta <= targetAreaThreshold) {
-            if (TagID == 20) effectiveTargetTX = BLUE_TX;
-            else if (TagID == 24) effectiveTargetTX = RED_TX;
-            else effectiveTargetTX = TARGET_TX;
-        } else {
-            effectiveTargetTX = 0.0;
-        }
-
-        double txError = tx - effectiveTargetTX;
-        double tyError = ty - TARGET_TY;
+        double txError = target.getTargetXDegrees() - targetTxFor(target);
+        double tyError = target.getTargetYDegrees() - TARGET_TY;
 
         return Math.abs(txError) <= HEADING_THRESHOLD && Math.abs(tyError) <= DISTANCE_THRESHOLD;
     }
 
     public void visualServo() {
-        targetAreaThreshold = Limelight.TARGET_AREA_THRESHOLD;
-        BLUE_TX = Limelight.BLUE_ALLIANCE_TX;
-        RED_TX = Limelight.RED_ALLIANCE_TX;
-
-        LLResult result = limelight.getLatestResult();
-
-        if (result == null || !result.isValid()) {
-            frontLeft.setPower(0);
-            backLeft.setPower(0);
-            frontRight.setPower(0);
-            backRight.setPower(0);
-            telemetry.addData("No valid result", "");
-            telemetry.update();
-            return;
-        }
-
-        List<LLResultTypes.FiducialResult> fiducialResults = result.getFiducialResults();
-        if (fiducialResults == null || fiducialResults.isEmpty()) {
-            frontLeft.setPower(0);
-            backLeft.setPower(0);
-            frontRight.setPower(0);
-            backRight.setPower(0);
-            telemetry.addData("No fiducials found", "");
-            telemetry.update();
-            return;
-        }
-
-        boolean targetFound = false;
-        for (LLResultTypes.FiducialResult fr : fiducialResults) {
-            int fiducialId = fr.getFiducialId();
-            if (fiducialId == 20 || fiducialId == 24) {
-                targetFound = true;
-                TagID = fiducialId;
-                break;
-            }
-        }
-
-        if (!targetFound) {
-            TagID = -1;
-        }
+        LLResultTypes.FiducialResult target = findTarget();
+        boolean targetFound = target != null;
+        TagID = targetFound ? target.getFiducialId() : -1;
 
         if (targetFound) {
-            double tx = result.getTx(); // Horizontal offset from crosshair
-            double ty = result.getTy(); // Vertical offset from crosshair
-            double ta = result.getTa(); // Target Area to determine distance
-
-            // --- TX Determination by using distance ---
-            if (ta <= targetAreaThreshold) {
-                if (TagID == 20) TARGET_TX = BLUE_TX;
-                else if (TagID == 24) TARGET_TX = RED_TX;
-            } else {
-                TARGET_TX = 0.0;
-            }
+            double tx = target.getTargetXDegrees(); // Horizontal offset from crosshair
+            double ty = target.getTargetYDegrees(); // Vertical offset from crosshair
+            double ta = target.getTargetArea(); // Target Area to determine distance
+            TARGET_TX = targetTxFor(target);
 
             // --- TX (Heading) Control ---
             // Calculate error relative to TARGET_TX
@@ -218,7 +169,7 @@ public class VisualServoing {
             frontRight.setPower(0);
             backRight.setPower(0);
 
-            telemetry.addData("No valid result", "");
+            telemetry.addData("No fresh target", "");
             telemetry.update();
         }
     }
