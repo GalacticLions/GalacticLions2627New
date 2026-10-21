@@ -177,4 +177,12 @@ public class Robot {
     public void openGate() {
         gate.setPosition(Constants.Gate.GATE_OPEN);
     }
+
+    public void setGatePosition(double position) {
+        gate.setPosition(position);
+    }
+
+    public double getGatePosition() {
+        return gate.getPosition();
+    }
 }

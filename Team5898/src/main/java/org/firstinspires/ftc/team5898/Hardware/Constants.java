@@ -9,14 +9,18 @@ public class Constants {
   
   /** Hardware device names */
   public static class Hardware {
-    @NonNull public static String MOTOR_FRONT_LEFT = "fl";
-    @NonNull public static String MOTOR_FRONT_RIGHT = "fr";
-    @NonNull public static String MOTOR_BACK_LEFT = "bl";
-    @NonNull public static String MOTOR_BACK_RIGHT = "br";
       @NonNull
-      public static String MOTOR_LAUNCHER_RIGHT = "lr";
+      public static String MOTOR_FRONT_LEFT = "FL";
       @NonNull
-      public static String MOTOR_LAUNCHER_LEFT = "ll";
+      public static String MOTOR_FRONT_RIGHT = "FR";
+      @NonNull
+      public static String MOTOR_BACK_LEFT = "BL";
+      @NonNull
+      public static String MOTOR_BACK_RIGHT = "BR";
+      @NonNull
+      public static String MOTOR_LAUNCHER_RIGHT = "LR";
+      @NonNull
+      public static String MOTOR_LAUNCHER_LEFT = "LL";
       @NonNull
       public static String MOTOR_INTAKE = "intake";
       @NonNull
@@ -66,6 +70,8 @@ public class Constants {
         public static double GATE_OPEN = 0.5;
         @Sorter(sort = 9)
         public static double GATE_CLOSED = 1.0;
+        @Sorter(sort = 26)
+        public static double GATE_STEP = 0.1; // how far one dpad press moves the gate in GateTuner
     }
 
     @Configurable
