@@ -19,6 +19,8 @@ public class AutoTemplate extends LinearOpMode {
 
     private final boolean isRed = false;
     private final ElapsedTime timer = new ElapsedTime();
+    // Heading the drives hold, in degrees; 0 is the START facing until turnTo() changes it
+    private double holdHeading = 0;
     private Robot robot;
 
     @Override
@@ -41,7 +43,7 @@ public class AutoTemplate extends LinearOpMode {
         robot.startDriveInches(forwardInches, isRed ? -strafeInches : strafeInches, Constants.Auto.DRIVE_POWER);
         timer.reset();
         // Timeout so a robot stuck on a wall doesn't burn the rest of auto
-        while (opModeIsActive() && robot.isDriveBusy() && timer.seconds() < Constants.Auto.STEP_TIMEOUT_SEC) {
+        while (opModeIsActive() && robot.updateDrive(Math.toRadians(holdHeading)) && timer.seconds() < Constants.Auto.STEP_TIMEOUT_SEC) {
             idle();
         }
         robot.stopDrive();
@@ -49,6 +51,7 @@ public class AutoTemplate extends LinearOpMode {
 
     private void turnTo(double headingDeg) {
         double target = isRed ? -headingDeg : headingDeg;
+        holdHeading = target;
         timer.reset();
         while (opModeIsActive() && timer.seconds() < Constants.Auto.STEP_TIMEOUT_SEC) {
             double error = AngleUnit.normalizeDegrees(target - Math.toDegrees(robot.getHeadingRad()));
@@ -57,6 +60,8 @@ public class AutoTemplate extends LinearOpMode {
             }
             // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
             double turn = Range.clip(-Constants.Auto.TURN_KP * error, -Constants.Auto.TURN_MAX_POWER, Constants.Auto.TURN_MAX_POWER);
+            // Small errors give too little power to move, so the turn would stall until the timeout
+            turn = Math.copySign(Math.max(Math.abs(turn), Constants.Auto.TURN_MIN_POWER), turn);
             robot.drive(0, 0, turn);
         }
         robot.drive(0, 0, 0);

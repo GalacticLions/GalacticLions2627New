@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.team5898;
 
+import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.team5898.Hardware.Constants;
@@ -24,11 +26,13 @@ public class TeleOP extends OpMode {
     private enum State {IDLE, INTAKING, SHOOTING}
 
     private Robot robot;
+    private TelemetryManager panels;
     private State state = State.IDLE;
 
     @Override
     public void init() {
         robot = new Robot(hardwareMap);
+        panels = PanelsTelemetry.INSTANCE.getTelemetry();
     }
 
     @Override
@@ -67,12 +71,13 @@ public class TeleOP extends OpMode {
                 break;
             case SHOOTING:
                 robot.setLauncherVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_VELOCITY);
-                robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
                 // Only feed once both wheels are up to speed; closes again if a shot drags them down
                 if (robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_TOLERANCE)) {
                     robot.openGate();
+                    robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
                 } else {
                     robot.closeGate();
+                    robot.setIntakePower(0);
                 }
                 break;
         }
@@ -80,6 +85,9 @@ public class TeleOP extends OpMode {
         telemetry.addData("State", state);
         telemetry.addData("Launcher L/R", "%.0f / %.0f", robot.getLauncherLeftVelocity(), robot.getLauncherRightVelocity());
         telemetry.addData("At speed", robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_TOLERANCE));
+        // Turning counterclockwise should make heading go up
+        panels.addData("heading", Math.toDegrees(robot.getHeadingRad()));
+        panels.update(telemetry);
     }
 
     @Override

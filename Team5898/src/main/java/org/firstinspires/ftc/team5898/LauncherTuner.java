@@ -21,11 +21,14 @@ import org.firstinspires.ftc.team5898.Hardware.Robot;
 public class LauncherTuner extends OpMode {
     private Robot robot;
     private TelemetryManager panels;
+    double leftTarget = 0;
+    double rightTarget = 0;
 
     @Override
     public void init() {
         robot = new Robot(hardwareMap);
         panels = PanelsTelemetry.INSTANCE.getTelemetry();
+        robot.openGate();
     }
 
     @Override
@@ -34,9 +37,26 @@ public class LauncherTuner extends OpMode {
         robot.applyLauncherPIDF();
 
         // Full trigger = LAUNCHER_VELOCITY; snap it down for a step response
-        double leftTarget = gamepad1.left_trigger * Constants.TeleOp.LAUNCHER_VELOCITY;
-        double rightTarget = gamepad1.right_trigger * Constants.TeleOp.LAUNCHER_VELOCITY;
+
+        if (gamepad1.left_trigger > 0.3) {
+            leftTarget = Constants.TeleOp.LAUNCHER_VELOCITY;
+        } else {
+            leftTarget = 0;
+        }
+
+        if (gamepad1.right_trigger > 0.3) {
+            rightTarget = Constants.TeleOp.LAUNCHER_VELOCITY;
+        } else {
+            rightTarget = 0;
+        }
+
         robot.setLauncherVelocity(leftTarget, rightTarget);
+
+        if (gamepad1.a) {
+            robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
+        } else {
+            robot.setIntakePower(0);
+        }
 
         // Graph target vs actual for each side
         panels.addData("leftTarget", leftTarget);

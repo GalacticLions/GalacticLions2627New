@@ -3,8 +3,11 @@
  */
 package org.firstinspires.ftc.team5898.Hardware;
 
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.*;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 /**
@@ -13,6 +16,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class Robot {
     private final DcMotor frontLeft, frontRight, backLeft, backRight, intake;
     private final DcMotor[] driveMotors;
+    private final int[] driveStart = new int[4];
+    private double driveTargetForward, driveTargetStrafe, drivePower;
+    private final ElapsedTime driveTimer = new ElapsedTime();
     private final DcMotorEx launcherRight, launcherLeft;
     private final IMU imu;
     private final Servo gate;
@@ -23,6 +29,11 @@ public class Robot {
      * @param hardwareMap the OpMode's hardware map
      */
     public Robot(HardwareMap hardwareMap) {
+        // Read all of a hub's encoders in one call instead of one call per motor, so loops run faster
+        for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
+            hub.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
+        }
+
         frontLeft = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_FRONT_LEFT);
         frontRight = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_FRONT_RIGHT);
         backLeft = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_BACK_LEFT);
@@ -36,7 +47,7 @@ public class Robot {
         backLeft.setDirection(DcMotor.Direction.REVERSE);
 
         launcherLeft.setDirection(DcMotorSimple.Direction.REVERSE);
-        launcherRight.setDirection(DcMotorSimple.Direction.REVERSE);
+        launcherRight.setDirection(DcMotorSimple.Direction.FORWARD);
 
         driveMotors = new DcMotor[]{frontLeft, frontRight, backLeft, backRight};
         for (DcMotor motor : driveMotors) {
@@ -54,8 +65,8 @@ public class Robot {
 
         imu = hardwareMap.get(IMU.class, Constants.Hardware.IMU);
         imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.RIGHT)));
+                RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,
+                RevHubOrientationOnRobot.UsbFacingDirection.UP)));
     }
 
     /**
@@ -106,26 +117,43 @@ public class Robot {
     }
 
     public void startDriveInches(double forwardInches, double strafeInches, double power) {
-        int forward = (int) Math.round(forwardInches * Constants.Drive.COUNTS_PER_INCH);
-        int strafe = (int) Math.round(strafeInches * Constants.Drive.COUNTS_PER_INCH * Constants.Auto.STRAFE_MULTIPLIER);
-        // Same wheel mixing as drive(); targets must be set before switching to RUN_TO_POSITION
-        frontLeft.setTargetPosition(frontLeft.getCurrentPosition() + forward + strafe);
-        backLeft.setTargetPosition(backLeft.getCurrentPosition() + forward - strafe);
-        frontRight.setTargetPosition(frontRight.getCurrentPosition() + forward - strafe);
-        backRight.setTargetPosition(backRight.getCurrentPosition() + forward + strafe);
-        for (DcMotor motor : driveMotors) {
-            motor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            motor.setPower(Math.abs(power));
+        driveTargetForward = forwardInches * Constants.Drive.COUNTS_PER_INCH;
+        driveTargetStrafe = strafeInches * Constants.Drive.COUNTS_PER_INCH * Constants.Auto.STRAFE_MULTIPLIER;
+        drivePower = Math.abs(power);
+        driveTimer.reset();
+        for (int i = 0; i < driveMotors.length; i++) {
+            driveStart[i] = driveMotors[i].getCurrentPosition();
+            // Velocity control so a weak or loaded motor keeps pace with the others
+            driveMotors[i].setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         }
     }
 
-    public boolean isDriveBusy() {
-        for (DcMotor motor : driveMotors) {
-            if (motor.isBusy()) {
-                return true;
-            }
+    // TODO docstring
+    // Wheels slip (strafing especially), so encoder targets alone let the robot curve; the IMU corrects that
+    public boolean updateDrive(double headingRad) {
+        double fl = frontLeft.getCurrentPosition() - driveStart[0];
+        double fr = frontRight.getCurrentPosition() - driveStart[1];
+        double bl = backLeft.getCurrentPosition() - driveStart[2];
+        double br = backRight.getCurrentPosition() - driveStart[3];
+        // Inverse of the drive() mixing; turning cancels out of both sums
+        double forwardError = driveTargetForward - (fl + fr + bl + br) / 4;
+        double strafeError = driveTargetStrafe - (fl - bl - fr + br) / 4;
+        double distance = Math.hypot(forwardError, strafeError);
+        if (distance / Constants.Drive.COUNTS_PER_INCH < Constants.Auto.DRIVE_TOLERANCE_INCHES) {
+            drive(0, 0, 0);
+            return false;
         }
-        return false;
+        // Ramp up so the wheels don't slip at the start (slip fools the encoders), and brake on a sqrt
+        // curve (constant deceleration) so we stop on target without crawling the last few inches
+        double accelLimit = driveTimer.seconds() / Constants.Auto.DRIVE_ACCEL_SEC;
+        double decelLimit = Math.sqrt(distance / Constants.Drive.COUNTS_PER_INCH / Constants.Auto.DRIVE_DECEL_INCHES);
+        double speed = Range.clip(Math.min(accelLimit, decelLimit), Constants.Auto.DRIVE_MIN_POWER, drivePower);
+        double headingError = AngleUnit.normalizeDegrees(Math.toDegrees(headingRad - getHeadingRad()));
+        // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
+        double turn = Range.clip(-Constants.Auto.TURN_KP * headingError,
+                -Constants.Auto.TURN_MAX_POWER, Constants.Auto.TURN_MAX_POWER);
+        drive(speed * forwardError / distance, speed * strafeError / distance, turn);
+        return true;
     }
 
     public void stopDrive() {
