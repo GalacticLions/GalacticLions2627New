@@ -16,8 +16,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class Robot {
     private final DcMotor frontLeft, frontRight, backLeft, backRight, intake;
     private final DcMotor[] driveMotors;
-    private final int[] driveStart = new int[4];
-    private double driveTargetForward, driveTargetStrafe, drivePower;
+    private final int[] lastDrivePosition = new int[4];
+    private boolean hasDriveOrigin = false;
+    // Field frame from where the first move started: x is START forward, y is START right
+    private double fieldX, fieldY, targetX, targetY, drivePower;
     private final ElapsedTime driveTimer = new ElapsedTime();
     private final DcMotorEx launcherRight, launcherLeft;
     private final IMU imu;
@@ -117,42 +119,67 @@ public class Robot {
     }
 
     public void startDriveInches(double forwardInches, double strafeInches, double power) {
-        driveTargetForward = forwardInches * Constants.Drive.COUNTS_PER_INCH;
-        driveTargetStrafe = strafeInches * Constants.Drive.COUNTS_PER_INCH * Constants.Auto.STRAFE_MULTIPLIER;
+        if (!hasDriveOrigin) {
+            for (int i = 0; i < driveMotors.length; i++) {
+                lastDrivePosition[i] = driveMotors[i].getCurrentPosition();
+            }
+            hasDriveOrigin = true;
+        }
+        // The move is relative to the current facing, but the target lives in the field frame, so the path stays
+        // straight even if the robot turns on the way. Targets add up from the first move, so stop tolerance,
+        // coasting and timeouts get made up by the next move rather than piling up.
+        double heading = getHeadingRad();
+        targetX += forwardInches * Math.cos(heading) + strafeInches * Math.sin(heading);
+        targetY += -forwardInches * Math.sin(heading) + strafeInches * Math.cos(heading);
         drivePower = Math.abs(power);
         driveTimer.reset();
-        for (int i = 0; i < driveMotors.length; i++) {
-            driveStart[i] = driveMotors[i].getCurrentPosition();
+        for (DcMotor motor : driveMotors) {
             // Velocity control so a weak or loaded motor keeps pace with the others
-            driveMotors[i].setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         }
     }
 
     // TODO docstring
     // Wheels slip (strafing especially), so encoder targets alone let the robot curve; the IMU corrects that
     public boolean updateDrive(double headingRad) {
-        double fl = frontLeft.getCurrentPosition() - driveStart[0];
-        double fr = frontRight.getCurrentPosition() - driveStart[1];
-        double bl = backLeft.getCurrentPosition() - driveStart[2];
-        double br = backRight.getCurrentPosition() - driveStart[3];
-        // Inverse of the drive() mixing; turning cancels out of both sums
-        double forwardError = driveTargetForward - (fl + fr + bl + br) / 4;
-        double strafeError = driveTargetStrafe - (fl - bl - fr + br) / 4;
-        double distance = Math.hypot(forwardError, strafeError);
-        if (distance / Constants.Drive.COUNTS_PER_INCH < Constants.Auto.DRIVE_TOLERANCE_INCHES) {
+        double heading = getHeadingRad();
+        // Wheel travel since last loop, in the same order as driveMotors: FL, FR, BL, BR
+        double[] delta = new double[4];
+        for (int i = 0; i < driveMotors.length; i++) {
+            int position = driveMotors[i].getCurrentPosition();
+            delta[i] = position - lastDrivePosition[i];
+            lastDrivePosition[i] = position;
+        }
+        // Inverse of the drive() mixing; turning cancels out of both sums.
+        // ponytail: only counts travel during drives, which is fine while only turns happen between moves
+        double forwardMoved = (delta[0] + delta[1] + delta[2] + delta[3]) / 4 / Constants.Drive.COUNTS_PER_INCH;
+        double strafeMoved = (delta[0] - delta[1] - delta[2] + delta[3]) / 4 / Constants.Drive.COUNTS_PER_INCH
+                / Constants.Auto.STRAFE_MULTIPLIER;
+        // Rotate into the field frame; heading is counterclockwise-positive
+        fieldX += forwardMoved * Math.cos(heading) + strafeMoved * Math.sin(heading);
+        fieldY += -forwardMoved * Math.sin(heading) + strafeMoved * Math.cos(heading);
+
+        double errorX = targetX - fieldX;
+        double errorY = targetY - fieldY;
+        double distance = Math.hypot(errorX, errorY);
+        if (distance < Constants.Auto.DRIVE_TOLERANCE_INCHES) {
             drive(0, 0, 0);
             return false;
         }
         // Ramp up so the wheels don't slip at the start (slip fools the encoders), and brake on a sqrt
         // curve (constant deceleration) so we stop on target without crawling the last few inches
         double accelLimit = driveTimer.seconds() / Constants.Auto.DRIVE_ACCEL_SEC;
-        double decelLimit = Math.sqrt(distance / Constants.Drive.COUNTS_PER_INCH / Constants.Auto.DRIVE_DECEL_INCHES);
+        double decelLimit = Math.sqrt(distance / Constants.Auto.DRIVE_DECEL_INCHES);
         double speed = Range.clip(Math.min(accelLimit, decelLimit), Constants.Auto.DRIVE_MIN_POWER, drivePower);
-        double headingError = AngleUnit.normalizeDegrees(Math.toDegrees(headingRad - getHeadingRad()));
+        // Field error back into the robot's frame; strafing needs more wheel travel per inch
+        double forward = errorX * Math.cos(heading) - errorY * Math.sin(heading);
+        double strafe = (errorX * Math.sin(heading) + errorY * Math.cos(heading)) * Constants.Auto.STRAFE_MULTIPLIER;
+        double length = Math.hypot(forward, strafe);
+        double headingError = AngleUnit.normalizeDegrees(Math.toDegrees(headingRad - heading));
         // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
         double turn = Range.clip(-Constants.Auto.TURN_KP * headingError,
                 -Constants.Auto.TURN_MAX_POWER, Constants.Auto.TURN_MAX_POWER);
-        drive(speed * forwardError / distance, speed * strafeError / distance, turn);
+        drive(speed * forward / length, speed * strafe / length, turn);
         return true;
     }
 
@@ -168,6 +195,12 @@ public class Robot {
                 Constants.PIDFLauncherLeft.kD, Constants.PIDFLauncherLeft.kF);
         applyPIDF(launcherRight, Constants.PIDFLauncherRight.kP, Constants.PIDFLauncherRight.kI,
                 Constants.PIDFLauncherRight.kD, Constants.PIDFLauncherRight.kF);
+    }
+
+    // Same gains on both wheels; Auto uses this to swap in its own tuning
+    public void applyLauncherPIDF(double kP, double kI, double kD, double kF) {
+        applyPIDF(launcherLeft, kP, kI, kD, kF);
+        applyPIDF(launcherRight, kP, kI, kD, kF);
     }
 
     // All-zero gains mean "not tuned yet": keep the motor's factory defaults instead of disabling its velocity loop
@@ -194,8 +227,15 @@ public class Robot {
     }
 
     public boolean isLauncherAtVelocity(double targetVelocity, double tolerance) {
-        return Math.abs(launcherLeft.getVelocity() - targetVelocity) < tolerance
-                && Math.abs(launcherRight.getVelocity() - targetVelocity) < tolerance;
+        return isAtVelocity(launcherLeft.getVelocity(), targetVelocity, tolerance)
+                && isAtVelocity(launcherRight.getVelocity(), targetVelocity, tolerance);
+    }
+
+    // Lopsided on purpose: a shot only drags the wheel down, so allow a dip of tolerance, but barely anything
+    // above target, where a ball flies long (the first ball used to catch the spin-up overshoot)
+    private static boolean isAtVelocity(double velocity, double targetVelocity, double tolerance) {
+        return velocity > targetVelocity - tolerance
+                && velocity < targetVelocity + Constants.TeleOp.LAUNCHER_MAX_OVERSHOOT;
     }
 
     public void closeGate() {

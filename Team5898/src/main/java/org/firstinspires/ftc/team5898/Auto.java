@@ -21,12 +21,13 @@ public class Auto extends LinearOpMode {
     private static final double TO_GARDEN_STRAFE = 0;
     // Park: strafe + is right on blue, so red goes left 34, forward 75, left 20
     private static final double PARK_SIDE_STRAFE = 34;
-    private static final double PARK_FORWARD_INCHES = 75;
-    private static final double PARK_IN_STRAFE = 20;
+    private static final double PARK_FORWARD_INCHES = 95;
+    private static final double PARK_IN_STRAFE = 32;
 
     private boolean isRed = true;
     private boolean shouldPark = true;
     private final ElapsedTime timer = new ElapsedTime();
+    private final ElapsedTime settleTimer = new ElapsedTime();
     // Heading the drives hold, in degrees; 0 is the START facing until turnTo() changes it
     private double holdHeading = 0;
     private Robot robot;
@@ -35,6 +36,8 @@ public class Auto extends LinearOpMode {
     @Override
     public void runOpMode() {
         robot = new Robot(hardwareMap);
+        robot.applyLauncherPIDF(Constants.PIDFLauncherAuto.kP, Constants.PIDFLauncherAuto.kI,
+                Constants.PIDFLauncherAuto.kD, Constants.PIDFLauncherAuto.kF);
         panels = PanelsTelemetry.INSTANCE.getTelemetry();
         robot.closeGate();
 
@@ -56,7 +59,7 @@ public class Auto extends LinearOpMode {
         resetRuntime();
 
         // Spin up while driving to the hive so shooting doesn't wait for the wheels
-        robot.setLauncherVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_VELOCITY);
+        robot.setLauncherVelocity(Constants.Auto.LAUNCHER_VELOCITY, Constants.Auto.LAUNCHER_VELOCITY);
 
         // Aim and shoot the preloads
         shootFor(Constants.Auto.SHOOT_TIME_SEC);
@@ -69,7 +72,7 @@ public class Auto extends LinearOpMode {
 
             // Drive back to the hive, spinning up on the way
             robot.setIntakePower(0);
-            robot.setLauncherVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_VELOCITY);
+            robot.setLauncherVelocity(Constants.Auto.LAUNCHER_VELOCITY, Constants.Auto.LAUNCHER_VELOCITY);
             driveAndWait(-TO_GARDEN_FORWARD, -TO_GARDEN_STRAFE);
 
             // Aim and shoot the refill
@@ -96,7 +99,7 @@ public class Auto extends LinearOpMode {
         timer.reset();
         while (opModeIsActive() && timer.seconds() < seconds) {
             // Only feed once both wheels are up to speed; stop again if a shot drags them down
-            if (robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.Auto.LAUNCHER_TOLERANCE)) {
+            if (robot.isLauncherAtVelocity(Constants.Auto.LAUNCHER_VELOCITY, Constants.Auto.LAUNCHER_TOLERANCE)) {
                 robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
                 robot.openGate();
             } else {
@@ -121,20 +124,35 @@ public class Auto extends LinearOpMode {
         robot.stopDrive();
     }
 
+    // Same as above, but turns to headingDeg on the way and holds it for later moves. turnTo() finishes
+    // the turn in case the move was too short to get there
+    private void driveAndWait(double forwardInches, double strafeInches, double headingDeg) {
+        holdHeading = isRed ? -headingDeg : headingDeg;
+        driveAndWait(forwardInches, strafeInches);
+        turnTo(headingDeg);
+    }
+
     private void turnTo(double headingDeg) {
         double target = isRed ? -headingDeg : headingDeg;
         holdHeading = target;
         timer.reset();
+        settleTimer.reset();
         while (opModeIsActive() && timer.seconds() < Constants.Auto.STEP_TIMEOUT_SEC) {
             double error = AngleUnit.normalizeDegrees(target - Math.toDegrees(robot.getHeadingRad()));
             if (Math.abs(error) < Constants.Auto.TURN_TOLERANCE) {
-                break;
+                // Brake and wait inside tolerance: momentum can carry it back out, and min power here would chatter
+                robot.drive(0, 0, 0);
+                if (settleTimer.seconds() > Constants.Auto.TURN_SETTLE_SEC) {
+                    break;
+                }
+            } else {
+                settleTimer.reset();
+                // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
+                double turn = Range.clip(-Constants.Auto.TURN_KP * error, -Constants.Auto.TURN_MAX_POWER, Constants.Auto.TURN_MAX_POWER);
+                // Small errors give too little power to move, so the turn would stall until the timeout
+                turn = Math.copySign(Math.max(Math.abs(turn), Constants.Auto.TURN_MIN_POWER), turn);
+                robot.drive(0, 0, turn);
             }
-            // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
-            double turn = Range.clip(-Constants.Auto.TURN_KP * error, -Constants.Auto.TURN_MAX_POWER, Constants.Auto.TURN_MAX_POWER);
-            // Small errors give too little power to move, so the turn would stall until the timeout
-            turn = Math.copySign(Math.max(Math.abs(turn), Constants.Auto.TURN_MIN_POWER), turn);
-            robot.drive(0, 0, turn);
             showHeading();
         }
         robot.drive(0, 0, 0);
