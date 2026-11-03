@@ -3,6 +3,7 @@
  */
 package org.firstinspires.ftc.team5898.Hardware;
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.*;
@@ -23,8 +24,8 @@ public class Robot {
     private final ElapsedTime driveTimer = new ElapsedTime();
     private final DcMotorEx launcherRight, launcherLeft;
     private final IMU imu;
+    private final GoBildaPinpointDriver pinpoint;
     private final Servo gate;
-
     /**
      * Gets the drive motors and IMU from the hardware map and sets them up.
      *
@@ -36,14 +37,14 @@ public class Robot {
             hub.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
         }
 
-        frontLeft = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_FRONT_LEFT);
-        frontRight = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_FRONT_RIGHT);
-        backLeft = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_BACK_LEFT);
-        backRight = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_BACK_RIGHT);
-        launcherRight = hardwareMap.get(DcMotorEx.class, Constants.Hardware.MOTOR_LAUNCHER_RIGHT);
-        launcherLeft = hardwareMap.get(DcMotorEx.class, Constants.Hardware.MOTOR_LAUNCHER_LEFT);
-        intake = hardwareMap.get(DcMotor.class, Constants.Hardware.MOTOR_INTAKE);
-        gate = hardwareMap.get(Servo.class, Constants.Hardware.SERVO_GATE);
+        frontLeft = hardwareMap.get(DcMotor.class, RobotConstants.Hardware.MOTOR_FRONT_LEFT);
+        frontRight = hardwareMap.get(DcMotor.class, RobotConstants.Hardware.MOTOR_FRONT_RIGHT);
+        backLeft = hardwareMap.get(DcMotor.class, RobotConstants.Hardware.MOTOR_BACK_LEFT);
+        backRight = hardwareMap.get(DcMotor.class, RobotConstants.Hardware.MOTOR_BACK_RIGHT);
+        launcherRight = hardwareMap.get(DcMotorEx.class, RobotConstants.Hardware.MOTOR_LAUNCHER_RIGHT);
+        launcherLeft = hardwareMap.get(DcMotorEx.class, RobotConstants.Hardware.MOTOR_LAUNCHER_LEFT);
+        intake = hardwareMap.get(DcMotor.class, RobotConstants.Hardware.MOTOR_INTAKE);
+        gate = hardwareMap.get(Servo.class, RobotConstants.Hardware.SERVO_GATE);
 
         frontLeft.setDirection(DcMotor.Direction.REVERSE);
         backLeft.setDirection(DcMotor.Direction.REVERSE);
@@ -65,7 +66,9 @@ public class Robot {
 
         applyLauncherPIDF();
 
-        imu = hardwareMap.get(IMU.class, Constants.Hardware.IMU);
+        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, RobotConstants.Hardware.PINPOINT);
+
+        imu = hardwareMap.get(IMU.class, RobotConstants.Hardware.IMU);
         imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(
                 RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,
                 RevHubOrientationOnRobot.UsbFacingDirection.UP)));
@@ -152,9 +155,9 @@ public class Robot {
         }
         // Inverse of the drive() mixing; turning cancels out of both sums.
         // ponytail: only counts travel during drives, which is fine while only turns happen between moves
-        double forwardMoved = (delta[0] + delta[1] + delta[2] + delta[3]) / 4 / Constants.Drive.COUNTS_PER_INCH;
-        double strafeMoved = (delta[0] - delta[1] - delta[2] + delta[3]) / 4 / Constants.Drive.COUNTS_PER_INCH
-                / Constants.Auto.STRAFE_MULTIPLIER;
+        double forwardMoved = (delta[0] + delta[1] + delta[2] + delta[3]) / 4 / RobotConstants.Drive.COUNTS_PER_INCH;
+        double strafeMoved = (delta[0] - delta[1] - delta[2] + delta[3]) / 4 / RobotConstants.Drive.COUNTS_PER_INCH
+                / RobotConstants.Auto.STRAFE_MULTIPLIER;
         // Rotate into the field frame; heading is counterclockwise-positive
         fieldX += forwardMoved * Math.cos(heading) + strafeMoved * Math.sin(heading);
         fieldY += -forwardMoved * Math.sin(heading) + strafeMoved * Math.cos(heading);
@@ -162,23 +165,23 @@ public class Robot {
         double errorX = targetX - fieldX;
         double errorY = targetY - fieldY;
         double distance = Math.hypot(errorX, errorY);
-        if (distance < Constants.Auto.DRIVE_TOLERANCE_INCHES) {
+        if (distance < RobotConstants.Auto.DRIVE_TOLERANCE_INCHES) {
             drive(0, 0, 0);
             return false;
         }
         // Ramp up so the wheels don't slip at the start (slip fools the encoders), and brake on a sqrt
         // curve (constant deceleration) so we stop on target without crawling the last few inches
-        double accelLimit = driveTimer.seconds() / Constants.Auto.DRIVE_ACCEL_SEC;
-        double decelLimit = Math.sqrt(distance / Constants.Auto.DRIVE_DECEL_INCHES);
-        double speed = Range.clip(Math.min(accelLimit, decelLimit), Constants.Auto.DRIVE_MIN_POWER, drivePower);
+        double accelLimit = driveTimer.seconds() / RobotConstants.Auto.DRIVE_ACCEL_SEC;
+        double decelLimit = Math.sqrt(distance / RobotConstants.Auto.DRIVE_DECEL_INCHES);
+        double speed = Range.clip(Math.min(accelLimit, decelLimit), RobotConstants.Auto.DRIVE_MIN_POWER, drivePower);
         // Field error back into the robot's frame; strafing needs more wheel travel per inch
         double forward = errorX * Math.cos(heading) - errorY * Math.sin(heading);
-        double strafe = (errorX * Math.sin(heading) + errorY * Math.cos(heading)) * Constants.Auto.STRAFE_MULTIPLIER;
+        double strafe = (errorX * Math.sin(heading) + errorY * Math.cos(heading)) * RobotConstants.Auto.STRAFE_MULTIPLIER;
         double length = Math.hypot(forward, strafe);
         double headingError = AngleUnit.normalizeDegrees(Math.toDegrees(headingRad - heading));
         // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
-        double turn = Range.clip(-Constants.Auto.TURN_KP * headingError,
-                -Constants.Auto.TURN_MAX_POWER, Constants.Auto.TURN_MAX_POWER);
+        double turn = Range.clip(-RobotConstants.Auto.TURN_KP * headingError,
+                -RobotConstants.Auto.TURN_MAX_POWER, RobotConstants.Auto.TURN_MAX_POWER);
         drive(speed * forward / length, speed * strafe / length, turn);
         return true;
     }
@@ -191,10 +194,10 @@ public class Robot {
     }
 
     public void applyLauncherPIDF() {
-        applyPIDF(launcherLeft, Constants.PIDFLauncherLeft.kP, Constants.PIDFLauncherLeft.kI,
-                Constants.PIDFLauncherLeft.kD, Constants.PIDFLauncherLeft.kF);
-        applyPIDF(launcherRight, Constants.PIDFLauncherRight.kP, Constants.PIDFLauncherRight.kI,
-                Constants.PIDFLauncherRight.kD, Constants.PIDFLauncherRight.kF);
+        applyPIDF(launcherLeft, RobotConstants.PIDFLauncherLeft.kP, RobotConstants.PIDFLauncherLeft.kI,
+                RobotConstants.PIDFLauncherLeft.kD, RobotConstants.PIDFLauncherLeft.kF);
+        applyPIDF(launcherRight, RobotConstants.PIDFLauncherRight.kP, RobotConstants.PIDFLauncherRight.kI,
+                RobotConstants.PIDFLauncherRight.kD, RobotConstants.PIDFLauncherRight.kF);
     }
 
     // Same gains on both wheels; Auto uses this to swap in its own tuning
@@ -235,15 +238,15 @@ public class Robot {
     // above target, where a ball flies long (the first ball used to catch the spin-up overshoot)
     private static boolean isAtVelocity(double velocity, double targetVelocity, double tolerance) {
         return velocity > targetVelocity - tolerance
-                && velocity < targetVelocity + Constants.TeleOp.LAUNCHER_MAX_OVERSHOOT;
+                && velocity < targetVelocity + RobotConstants.TeleOp.LAUNCHER_MAX_OVERSHOOT;
     }
 
     public void closeGate() {
-        gate.setPosition(Constants.Gate.GATE_CLOSED);
+        gate.setPosition(RobotConstants.Gate.GATE_CLOSED);
     }
 
     public void openGate() {
-        gate.setPosition(Constants.Gate.GATE_OPEN);
+        gate.setPosition(RobotConstants.Gate.GATE_OPEN);
     }
 
     public void setGatePosition(double position) {

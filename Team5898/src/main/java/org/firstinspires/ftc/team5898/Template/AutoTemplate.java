@@ -4,10 +4,9 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
-
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.team5898.Hardware.Constants;
 import org.firstinspires.ftc.team5898.Hardware.Robot;
+import org.firstinspires.ftc.team5898.Hardware.RobotConstants;
 
 // A template for non-state-machine autonomous
 @Disabled
@@ -41,10 +40,10 @@ public class AutoTemplate extends LinearOpMode {
     }
 
     private void driveAndWait(double forwardInches, double strafeInches) {
-        robot.startDriveInches(forwardInches, isRed ? -strafeInches : strafeInches, Constants.Auto.DRIVE_POWER);
+        robot.startDriveInches(forwardInches, isRed ? -strafeInches : strafeInches, RobotConstants.Auto.DRIVE_POWER);
         timer.reset();
         // Timeout so a robot stuck on a wall doesn't burn the rest of auto
-        while (opModeIsActive() && robot.updateDrive(Math.toRadians(holdHeading)) && timer.seconds() < Constants.Auto.STEP_TIMEOUT_SEC) {
+        while (opModeIsActive() && robot.updateDrive(Math.toRadians(holdHeading)) && timer.seconds() < RobotConstants.Auto.STEP_TIMEOUT_SEC) {
             idle();
         }
         robot.stopDrive();
@@ -63,20 +62,20 @@ public class AutoTemplate extends LinearOpMode {
         holdHeading = target;
         timer.reset();
         settleTimer.reset();
-        while (opModeIsActive() && timer.seconds() < Constants.Auto.STEP_TIMEOUT_SEC) {
+        while (opModeIsActive() && timer.seconds() < RobotConstants.Auto.STEP_TIMEOUT_SEC) {
             double error = AngleUnit.normalizeDegrees(target - Math.toDegrees(robot.getHeadingRad()));
-            if (Math.abs(error) < Constants.Auto.TURN_TOLERANCE) {
+            if (Math.abs(error) < RobotConstants.Auto.TURN_TOLERANCE) {
                 // Brake and wait inside tolerance: momentum can carry it back out, and min power here would chatter
                 robot.drive(0, 0, 0);
-                if (settleTimer.seconds() > Constants.Auto.TURN_SETTLE_SEC) {
+                if (settleTimer.seconds() > RobotConstants.Auto.TURN_SETTLE_SEC) {
                     break;
                 }
             } else {
                 settleTimer.reset();
                 // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
-                double turn = Range.clip(-Constants.Auto.TURN_KP * error, -Constants.Auto.TURN_MAX_POWER, Constants.Auto.TURN_MAX_POWER);
+                double turn = Range.clip(-RobotConstants.Auto.TURN_KP * error, -RobotConstants.Auto.TURN_MAX_POWER, RobotConstants.Auto.TURN_MAX_POWER);
                 // Small errors give too little power to move, so the turn would stall until the timeout
-                turn = Math.copySign(Math.max(Math.abs(turn), Constants.Auto.TURN_MIN_POWER), turn);
+                turn = Math.copySign(Math.max(Math.abs(turn), RobotConstants.Auto.TURN_MIN_POWER), turn);
                 robot.drive(0, 0, turn);
             }
         }

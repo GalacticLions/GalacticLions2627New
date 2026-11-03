@@ -5,9 +5,8 @@ import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.Range;
-
-import org.firstinspires.ftc.team5898.Hardware.Constants;
 import org.firstinspires.ftc.team5898.Hardware.Robot;
+import org.firstinspires.ftc.team5898.Hardware.RobotConstants;
 
 // controls: gamepad1 dpad up +GATE_STEP, dpad down -GATE_STEP
 @TeleOp(name = "GateTuner")
@@ -26,15 +25,15 @@ public class GateTuner extends OpMode {
         // Step the gate one press at a time; it doesn't move until a dpad is pressed
         double step = 0;
         if (gamepad1.dpadUpWasPressed()) {
-            step = Constants.Gate.GATE_STEP;
+            step = RobotConstants.Gate.GATE_STEP;
         } else if (gamepad1.dpadDownWasPressed()) {
-            step = -Constants.Gate.GATE_STEP;
+            step = -RobotConstants.Gate.GATE_STEP;
         }
         if (step != 0) {
             // Nothing has been commanded yet on the first press, so start from closed
             double current = robot.getGatePosition();
             if (Double.isNaN(current)) {
-                current = Constants.Gate.GATE_CLOSED;
+                current = RobotConstants.Gate.GATE_CLOSED;
             }
             robot.setGatePosition(Range.clip(current + step, 0.0, 1.0));
         }

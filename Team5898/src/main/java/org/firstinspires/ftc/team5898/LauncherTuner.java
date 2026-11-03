@@ -4,9 +4,8 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
-import org.firstinspires.ftc.team5898.Hardware.Constants;
 import org.firstinspires.ftc.team5898.Hardware.Robot;
+import org.firstinspires.ftc.team5898.Hardware.RobotConstants;
 
 /**
  * A testing file for launcher PIDF values.
@@ -39,13 +38,13 @@ public class LauncherTuner extends OpMode {
         // Full trigger = LAUNCHER_VELOCITY; snap it down for a step response
 
         if (gamepad1.left_trigger > 0.3) {
-            leftTarget = Constants.TeleOp.LAUNCHER_VELOCITY;
+            leftTarget = RobotConstants.TeleOp.LAUNCHER_VELOCITY;
         } else {
             leftTarget = 0;
         }
 
         if (gamepad1.right_trigger > 0.3) {
-            rightTarget = Constants.TeleOp.LAUNCHER_VELOCITY;
+            rightTarget = RobotConstants.TeleOp.LAUNCHER_VELOCITY;
         } else {
             rightTarget = 0;
         }
@@ -53,7 +52,7 @@ public class LauncherTuner extends OpMode {
         robot.setLauncherVelocity(leftTarget, rightTarget);
 
         if (gamepad1.a) {
-            robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
+            robot.setIntakePower(RobotConstants.TeleOp.INTAKE_POWER);
         } else {
             robot.setIntakePower(0);
         }

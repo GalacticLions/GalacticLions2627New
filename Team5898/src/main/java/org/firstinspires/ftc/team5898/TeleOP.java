@@ -7,8 +7,8 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.team5898.Hardware.Constants;
 import org.firstinspires.ftc.team5898.Hardware.Robot;
+import org.firstinspires.ftc.team5898.Hardware.RobotConstants;
 
 /**
  * A robot-centric TeleOp.
@@ -51,16 +51,16 @@ public class TeleOP extends OpMode {
     public void loop() {
         // Turn stick turns; once it's let go the IMU holds the heading, so strafing doesn't spin the robot
         double turn = gamepad1.right_stick_x;
-        if (Math.abs(turn) > Constants.TeleOp.TURN_DEADBAND) {
+        if (Math.abs(turn) > RobotConstants.TeleOp.TURN_DEADBAND) {
             turnTimer.reset();
         }
-        if (turnTimer.seconds() < Constants.TeleOp.HEADING_HOLD_DELAY_SEC) {
+        if (turnTimer.seconds() < RobotConstants.TeleOp.HEADING_HOLD_DELAY_SEC) {
             holdHeadingDeg = Math.toDegrees(robot.getHeadingRad());
         } else {
             double error = AngleUnit.normalizeDegrees(holdHeadingDeg - Math.toDegrees(robot.getHeadingRad()));
             // IMU yaw is counterclockwise-positive but drive() turns clockwise, so flip the sign
-            turn = Range.clip(-Constants.TeleOp.HEADING_KP * error,
-                    -Constants.TeleOp.HEADING_MAX_POWER, Constants.TeleOp.HEADING_MAX_POWER);
+            turn = Range.clip(-RobotConstants.TeleOp.HEADING_KP * error,
+                    -RobotConstants.TeleOp.HEADING_MAX_POWER, RobotConstants.TeleOp.HEADING_MAX_POWER);
         }
 
         // Drive relative to the robot; stick Y is inverted
@@ -89,21 +89,21 @@ public class TeleOP extends OpMode {
                 robot.closeGate();
                 break;
             case INTAKING:
-                robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
+                robot.setIntakePower(RobotConstants.TeleOp.INTAKE_POWER);
                 robot.setLauncherVelocity(0, 0);
                 robot.closeGate();
                 break;
             case OUTTAKING:
-                robot.setIntakePower(-Constants.TeleOp.INTAKE_POWER);
+                robot.setIntakePower(-RobotConstants.TeleOp.INTAKE_POWER);
                 robot.setLauncherVelocity(0, 0);
                 robot.closeGate();
                 break;
             case SHOOTING:
-                robot.setLauncherVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_VELOCITY);
+                robot.setLauncherVelocity(RobotConstants.TeleOp.LAUNCHER_VELOCITY, RobotConstants.TeleOp.LAUNCHER_VELOCITY);
                 robot.openGate();
                 // Wait before feeding so the gate opens and the wheels spin up; a timer instead of sleep() so driving doesn't freeze
-                if (gateTimer.seconds() >= Constants.TeleOp.GATE_OPEN_DELAY_SEC) {
-                    robot.setIntakePower(Constants.TeleOp.INTAKE_POWER);
+                if (gateTimer.seconds() >= RobotConstants.TeleOp.GATE_OPEN_DELAY_SEC) {
+                    robot.setIntakePower(RobotConstants.TeleOp.INTAKE_POWER);
                 } else {
                     robot.setIntakePower(0);
                 }
@@ -112,7 +112,7 @@ public class TeleOP extends OpMode {
 
         telemetry.addData("State", state);
         telemetry.addData("Launcher L/R", "%.0f / %.0f", robot.getLauncherLeftVelocity(), robot.getLauncherRightVelocity());
-        telemetry.addData("At speed", robot.isLauncherAtVelocity(Constants.TeleOp.LAUNCHER_VELOCITY, Constants.TeleOp.LAUNCHER_TOLERANCE));
+        telemetry.addData("At speed", robot.isLauncherAtVelocity(RobotConstants.TeleOp.LAUNCHER_VELOCITY, RobotConstants.TeleOp.LAUNCHER_TOLERANCE));
         telemetry.addData("Gate", robot.getGatePosition());
         // Turning counterclockwise should make heading go up
         panels.addData("heading", Math.toDegrees(robot.getHeadingRad()));

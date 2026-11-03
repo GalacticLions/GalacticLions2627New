@@ -4,8 +4,9 @@ import androidx.annotation.NonNull;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.configurables.annotations.Sorter;
 
-public class Constants {
-  private Constants() {}
+public class RobotConstants {
+    private RobotConstants() {
+    }
   
   /** Hardware device names */
   public static class Hardware {
@@ -27,6 +28,8 @@ public class Constants {
       public static String IMU = "imu";
       @NonNull
       public static String SERVO_GATE = "gate";
+      @NonNull
+      public static String PINPOINT = "pinpoint";
   }
 
   /** Robot physical dimensions and drivetrain parameters; Basic Autonomous only!!! */
