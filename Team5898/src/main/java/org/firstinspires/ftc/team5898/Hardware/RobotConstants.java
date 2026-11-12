@@ -3,6 +3,7 @@ package org.firstinspires.ftc.team5898.Hardware;
 import androidx.annotation.NonNull;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.configurables.annotations.Sorter;
+import com.pedropathing.math.Pose;
 
 public class RobotConstants {
     private RobotConstants() {
@@ -84,7 +85,7 @@ public class RobotConstants {
     @Configurable
     public static class Gate {
         @Sorter(sort = 8)
-        public static double GATE_OPEN = 1.0;
+        public static double GATE_OPEN = 0.75;
         @Sorter(sort = 9)
         public static double GATE_CLOSED = 0.0;
         @Sorter(sort = 26)
@@ -111,6 +112,27 @@ public class RobotConstants {
         public static double TURN_DEADBAND = 0.05; // turn stick below this counts as let go
         @Sorter(sort = 38)
         public static double HEADING_HOLD_DELAY_SEC = 0.25; // lets the robot stop spinning before we lock the heading
+        @Sorter(sort = 44)
+        public static double TARGET_X = 72.0; // inches, Pedro coordinates; placeholder, measure on the field
+        @Sorter(sort = 45)
+        public static double TARGET_Y = 72.0; // inches, Pedro coordinates; placeholder, measure on the field
+        @Sorter(sort = 46)
+        public static double TARGET_HEADING_DEG = 90.0; // placeholder, measure on the field
+        @Sorter(sort = 47)
+        public static double TARGET_MIN_PATH_INCHES = 2.0; // closer than this, hold the target instead of building a path
+    }
+
+    // Pedro coordinates; placeholders, measure on the field
+    public static class Target {
+        public static Pose RED_LEFT = new Pose(58.8, 132.8, Math.toRadians(-90));
+        public static Pose RED_RIGHT = new Pose(57.8, 8.8, Math.toRadians(90));
+        public static Pose BLUE_LEFT = new Pose(82.4, 133.5, Math.toRadians(-90));
+        public static Pose BLUE_RIGHT = new Pose(79, 11.0, Math.toRadians(90));
+        public static final Pose FIELD_CENTER = new Pose(72, 72, Math.toRadians(90));
+        public static final double FIELD_MID_Y = 72.0;
+        // A only drives to a target from below or above the obstacles in the middle of the field
+        public static double AUTO_DRIVE_BELOW_Y = 52.75;
+        public static double AUTO_DRIVE_ABOVE_Y = 95.75;
     }
 
     @Configurable
