@@ -4,8 +4,11 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.Servo;
+
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp(name = "TeleOP")
@@ -14,6 +17,10 @@ public class teleop extends OpMode {
     DcMotor frontRightDrive;
     DcMotor backLeftDrive;
     DcMotor backRightDrive;
+    DcMotor intake;
+    DcMotor leftflywheel;
+    DcMotor rightflywheel;
+    Servo intakeservo;
     IMU imu;
 
     @Override
@@ -22,6 +29,11 @@ public class teleop extends OpMode {
         frontRightDrive = hardwareMap.get(DcMotor.class, "frontRightDrive");
         backLeftDrive = hardwareMap.get(DcMotor.class, "backLeftDrive");
         backRightDrive = hardwareMap.get(DcMotor.class, "backRightDrive");
+        intake = hardwareMap.get(DcMotor.class, "intake");
+        leftflywheel = hardwareMap.get(DcMotor.class, "leftflywheel");
+        rightflywheel = hardwareMap.get(DcMotor.class,"rightflywheel");
+        intakeservo = hardwareMap.get(Servo.class,"intakeservo");
+
 
         backLeftDrive.setDirection(DcMotorSimple.Direction.REVERSE);
         frontLeftDrive.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -30,6 +42,7 @@ public class teleop extends OpMode {
         frontRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        intake.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.BACKWARD;
@@ -66,7 +79,7 @@ public class teleop extends OpMode {
             return;
         }
 
-        if (gamepad1.a) {
+        if (gamepad1.b) {
             imu.resetYaw();
         }
 
@@ -74,6 +87,39 @@ public class teleop extends OpMode {
             drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
         } else {
             driveFieldRelative(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+        }
+
+
+        if (gamepad1.dpad_down) {
+            intake.setPower(1);
+        }
+        else{
+            intake.setPower(0);
+        }
+
+        if (gamepad1.dpad_up)
+        {
+            intake.setPower(-1);
+        }
+        else {
+            intake.setPower(0);
+        }
+
+        if (gamepad1.x) {
+            leftflywheel.setPower(0.9);
+            rightflywheel.setPower(0.9);
+        }
+        else
+        {
+            leftflywheel.setPower(0);
+            rightflywheel.setPower(0);
+        }
+
+        if (gamepad1.a) {
+            intakeservo.setPosition(1);
+        }
+        else {
+            intakeservo.setPosition(0);
         }
     }
 
